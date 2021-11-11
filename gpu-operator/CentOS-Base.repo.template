@@ -1,0 +1,17 @@
+[LocalBaseOS]
+name=LocalYum- - Base
+baseurl= http://ec2-18-219-222-146.us-east-2.compute.amazonaws.com:8080/content/dist/rhel8/8/x86_64/baseos/os
+gpgcheck=1
+gpgkey=file:/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+protect=1
+priority=1
+enabled=1
+
+[rhel-8-appstream-rhui-rpms]
+name=Red Hat Enterprise Linux 8 for  - AppStream from RHUI (RPMs)
+baseurl= http://ec2-18-219-222-146.us-east-2.compute.amazonaws.com:8080/content/dist/rhel8/8/x86_64/appstream/os
+enabled=1
+gpgcheck=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
+protect=1
+priority=1

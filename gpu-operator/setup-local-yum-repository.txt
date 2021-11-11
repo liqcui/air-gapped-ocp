@@ -1,0 +1,158 @@
+1.2.1 Required RPM package for Redhat/CentOS
+ gcc                                      appstream            
+ glibc                                        baseos           
+ kernel-headers                        baseos               
+ make                                    baseos            
+ cpio                              baseos       
+ curl                               baseos       
+ glibc                             
+ glibc-common                        baseos      
+ glibc-minimal-langpack         
+ kmod                              baseos             
+ libcurl-minimal                baseos        
+ libgcc                             baseos          
+ cpp                                   appstream        
+ glibc-devel                       baseos         
+ glibc-headers                     baseos         
+ isl                                 appstream    
+ libgomp                          baseos         
+ libmpc                             appstream      
+ libpkgconf                         baseos           
+ libxcrypt-devel              baseos     
+ pkgconf                                  baseos      
+ pkgconf-m4                            baseos  
+ pkgconf-pkg-config                baseos              
+ glibc-langpack-en                 baseos       
+
+ elfutils-libelf-devel                   baseos        
+ elfutils-libelf                  baseos             
+ elfutils-libs                     baseos      
+ zlib                                  baseos   
+ zlib-devel                        baseos      
+ elfutils-debuginfod-client              baseos   
+
+ kernel-devel                     baseos     
+ groff-base                               baseos    
+ ncurses                          baseos 
+ perl-Carp                        baseos        
+ perl-Encode                   baseos     
+ perl-Err                          baseos     
+ perl-Exporter                 baseos        
+ perl-File-Path                 baseos     
+ perl-File-Te                   baseos          
+ perl-Getopt-Long         baseos          
+ perl-HTTP-Tiny              baseos  
+ perl-IO                baseos        
+ perl-MIME-Base64                    baseos          
+ perl-Path                                  baseos      
+ perl-Pod-Es                           baseos          
+ perl-Pod-Perldoc                baseos        
+ perl-Pod-Simple                                          baseos      
+ perl-Pod-Usage                                         baseos        
+ perl-Scalar-List-Utils                    baseos           
+ perl-Socket                       baseos       
+ perl-Storable                     baseos      
+ perl-Term-ANSIColor                         baseos     
+ perl-Term-Cap             baseos          
+ perl-Text-ParseWords                  baseos          
+ perl-Text-Tabs+Wrap                     baseos        
+ perl-Time-Local                    baseos    
+ perl-Unicode-Normalize                            baseos  
+ perl-constant                        baseos     
+ perl-interpreter                        baseos 
+ perl-libs                        baseos   
+ perl-macros              baseos     
+ perl-parent                        baseos      
+ perl-podlators                      baseos      
+ perl-threads                     baseos        
+ perl-threads-shared           baseos           
+ perl-IO-Socket-IP                appstream   
+ perl-Mozilla-CA                     appstream        
+ perl                                                                                                     
+ perl-IO-Socket-SSL                                                                            
+ perl-libwww-perl                                                                                       
+
+Note: You can mirror yum repository by following step 1.2.2 Sync Yum repository of RHEL and 1.2.3 Reposync Yum Repository for Nvidia by yourself. Note: The size of the whole yum repository is huge, you need to remove some useless files after sync the files. Or skip it and use the files we have minimized, you can get all the files from the images quay.io/liqcui/mirrored-yum-repos.
+1.2.2 Sync Yum repository of RHEL
+Configure and Register subscription-manager register
+https://access.redhat.com/solutions/265523 
+https://www.redhat.com/sysadmin/how-mirror-repository 
+rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
+reposync --gpgcheck --repoid=rhel-8-baseos-rhui-rpms --download-path=/opt/mirror-repos/ --downloadcomps --download-metadata --nodocs
+reposync --gpgcheck --repoid=rhel-8-appstream-rhui-rpms --download-path=/opt/mirror-repos/ --downloadcomps --download-metadata
+1.2.3 Reposync Yum Repository for Nvidia
+Required rpm package for nvidia
+ nvidia-container-toolkit          nvidia-container-runtime      
+ libnvidia-container-tools          libnvidia-container     
+ libnvidia-container1                 libnvidia-container    
+
+Get repo file of NViddia 
+curl -s -L https://nvidia.github.io/nvidia-container-runtime/centos7/nvidia-container-runtime.repo | \
+    tee /etc/yum.repos.d/nvidia-container-runtime.repo
+     
+reposync --gpgcheck --repoid=nvidia-container-runtime --download-path=/opt/mirror-repos/ --downloadcomps --download-metadata
+
+reposync --gpgcheck --repoid=libnvidia-container --download-path=/opt/mirror-repos/ --downloadcomps --download-metadata
+
+reposync --gpgcheck --repoid=libnvidia-container-experimental --download-path=/opt/mirror-repos/ --downloadcomps --download-metadata
+
+reposync --gpgcheck --repoid=nvidia-container-runtime-experimental --download-path=/opt/mirror-repos/ --downloadcomps --download-metadata
+
+You can use clone the automation code, and minimal the yum repository package using the script minimal-yum-repos.sh
+
+Clone the automation code to jump hosts then execute startup-mirror-registry.sh scripts.
+git clone git@github.com:liqcui/air-gapped-ocp.git
+cd air-gapped-ocp/build-mirror-env/
+./minimal-yum-repos.sh -s /opt/mirror-repos -t /tmp/mirror-repos
+tar cvf /tmp/mirror-repos.tar /tmp/mirror-repos
+
+Then copy the whole folder /tmp/mirror-repos.tar to flexy proxy server
+scp -i ~/.ssh/openshift-qe.pem /opt/mirror-repos.tar ${JUMP_USERID}@${JUMP_HOST}:/tmp/ 
+1.2.4 Setup shared local yum repository
+Below steps must be execute in flexy proxy hosts of disconnected cluster:
+Login Flexy proxy server:
+ ssh -o "StrictHostKeyChecking no" -i ${JUMP_SSHKEY}   ${JUMP_USERID}@${JUMP_HOST}
+
+Login Flexy Jumphost(proxy server, then install apache httpd.
+yum install httpd -y
+systemctl restart  httpd
+systemctl enable httpd
+tar -C /opt/ -xvf /tmp/mirror-repos.tar
+mkdir -p /var/www/html/content/dist/rhel8/8/x86_64/appstream/
+ln -s /opt/mirror-repos/rhel-8-appstream-rhui-rpms /var/www/html/content/dist/rhel8/8/x86_64/appstream/os
+mkdir -p /var/www/html/content/dist/rhel8/8/x86_64/baseos/
+ln -s /opt/mirror-repos/rhel-8-baseos-rhui-rpms/ /var/www/html/content/dist/rhel8/8/x86_64/baseos/os
+
+mkdir -p  /var/www/html/nvidia-container-runtime/centos7/
+curl -s -L https://nvidia.github.io/nvidia-container-runtime/centos7/nvidia-container-runtime.repo | \
+    tee  /var/www/html/nvidia-container-runtime/centos7/nvidia-container-runtime.repo
+sed -i 's;https://nvidia.github.io;http://${JUMP_HOST}:8080;' /var/www/html/nvidia-container-runtime/centos7/nvidia-container-runtime.repo
+sed -i 's/repo_gpgcheck=1/repo_gpgcheck=0/' /var/www/html/nvidia-container-runtime/centos7/nvidia-container-runtime.repo
+
+mkdir -p  /var/www/html/libnvidia-container/stable/centos7/
+mkdir -p  /var/www/html/libnvidia-container/experimental/centos7/
+mkdir -p  /var/www/html/nvidia-container-runtime/stable/centos7/
+mkdir -p  /var/www/html/nvidia-container-runtime/experimental/centos7/
+ln -s /opt/mirror-repos/libnvidia-container/ /var/www/html/libnvidia-container/stable/centos7/x86_64
+ln -s /opt/mirror-repos/libnvidia-container-experimental/  /var/www/html/libnvidia-container/experimental/centos7/x86_64
+ln -s /opt/mirror-repos/nvidia-container-runtime/  /var/www/html/nvidia-container-runtime/stable/centos7/x86_64
+ln -s /opt/mirror-repos/nvidia-container-runtime-experimental /var/www/html/nvidia-container-runtime/experimental/centos7/x86_64
+
+Download donkey, extract-vmlinux 
+mkdir -p /var/www/html/3XX0/donkey/releases/download/v1.1.0/
+curl -fsSL -o /var/www/html/3XX0/donkey/releases/download/v1.1.0/donkey https://github.com/3XX0/donkey/releases/download/v1.1.0/donkey 
+
+mkdir -p /var/www/html/torvalds/linux/master/scripts/
+curl -fsSL -o  /var/www/html/torvalds/linux/master/scripts/extract-vmlinux https://raw.githubusercontent.com/torvalds/linux/master/scripts/extract-vmlinux
+ 
+Download NVIDIA-Linux-x86_64-$DRIVER_VERSION.run
+Depending on the version of NVDIA, Please check the specified Dockerfile
+export BASE_URL=https://us.download.nvidia.com/tesla
+export DRIVER_VERSION=418.87.01
+export SHORT_DRIVER_VERSION=418.87
+export DRIVER_VERSION=$DRIVER_VERSION
+
+mkdir -p  /var/www/html/tesla/$SHORT_DRIVER_VERSION/
+cd /var/www/html/tesla/$SHORT_DRIVER_VERSION/
+pwd
+curl -fSsl -O $BASE_URL/$SHORT_DRIVER_VERSION/NVIDIA-Linux-x86_64-$DRIVER_VERSION.run

@@ -1,0 +1,7 @@
+FROM centos as builder
+RUN yum -y install openssl&&yum clean all
+RUN mkdir /opt/certs
+RUN openssl req -subj "/C=CN/ST=BJ/L=BJ/O=RedHat/OU=OpenShiftQE/CN=JUMPHOST/emailAddress=liqcui@redhat.com" -addext 'subjectAltName=DNS:JUMPHOST' -newkey rsa:4096 -nodes -sha256 -keyout /opt/certs/domain.key -x509 -days 365 -out /opt/certs/domain.crt
+
+FROM docker.io/library/registry:2.7.1
+COPY --from=builder /opt/certs/ /certs/

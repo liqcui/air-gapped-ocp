@@ -1,0 +1,9 @@
+mirror-repos.tar
+*.pem
+0003-cluster-wide-machineconfigs-disconn.yaml
+ed_replace
+Dockerfile4registry
+opm*
+pull-secret.json.template
+pull-secret.json
+*.crt

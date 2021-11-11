@@ -1,0 +1,103 @@
+Manual Steps:
+Below steps must be execute in flexy proxy hosts of disconnected cluster:
+ Login Flexy proxy server:
+ ssh -o "StrictHostKeyChecking no" -i ${JUMP_SSHKEY}   ${JUMP_USERID}@${JUMP_HOST}
+1.3.1 Setup Gitlab
+mkdir -p /opt/gitlab/config
+mkdir -p /opt/gitlab/data
+mkdir -p /opt/gitlab/logs
+GITLAB_HOME=/opt/gitlab
+Using below command to generate password 
+sudo podman run --detach   --hostname ${JUMP_HOST} --publish 8443:443 --publish 80:80 --name gitlab   --restart always   --volume $GITLAB_HOME/config:/etc/gitlab:Z   --volume $GITLAB_HOME/logs:/var/log/gitlab:Z   --volume $GITLAB_HOME/data:/var/opt/gitlab:Z   docker.io/gitlab/gitlab-ee
+Find the default password for root user
+#podman exec -it gitlab cat /etc/gitlab/initial_root_password
+
+Using Specific Password as below
+podman run --detach   --publish 8443:443 --publish 80:80 --name gitlab   --restart always   --volume $GITLAB_HOME/config:/etc/gitlab:Z   --volume $GITLAB_HOME/logs:/var/log/gitlab:Z   --volume $GITLAB_HOME/data:/var/opt/gitlab:Z -e "GITLAB_ROOT_PASSWORD=openshift+psap+qe"  docker.io/gitlab/gitlab-ee
+
+podman run --detach   --publish 8443:443 --publish 5000:80 --name gitlab   --restart always   --volume $GITLAB_HOME/config:/etc/gitlab:Z   --volume $GITLAB_HOME/logs:/var/log/gitlab:Z   --volume $GITLAB_HOME/data:/var/opt/gitlab:Z -e "GITLAB_ROOT_PASSWORD=openshift+psap+qe"  docker.io/gitlab/gitlab-ee
+Wait for 5 minutes to initialize gitlab.
+1.3.2 Create User/Group and Project for Mirror Gitlab
+http://${JUMP_HOST}  
+Login Gitlab console using root.
+Register a user for gitlab
+
+Login Gitlab Console to approve new created user
+Menu=>Admin=>Users=>Pending Approval
+
+Create a new public group zvonkok and public project driver.
+Menu=>Groups=>Create Group to create a public group named zvonkok
+Menu=>Projects=>Create new project to create a public projec named driver
+
+
+Assign this user to the project driver. The user must be maintainer
+
+Below steps must be execute in flexy proxy hosts of disconnected cluster:
+Login Flexy proxy server:
+ ssh -o "StrictHostKeyChecking no" -i ${JUMP_SSHKEY}   ${JUMP_USERID}@${JUMP_HOST}
+In Giltab Container, Execute below command
+##########################################################
+podman exec -it gitlab bash
+cd /opt/
+git clone -b entitled https://gitlab.com/zvonkok/driver.git
+cd driver
+rm -rf .git
+git init --initial-branch=entitled
+git remote add origin http://${JUMP_HOST}/zvonkok/driver.git
+
+cd /opt/driver
+find ./ -name Dockerfile | xargs sed -i "s;https://nvidia.github.io;http://${JUMP_HOST}:8080;g"
+find ./ -name Dockerfile | xargs sed -i "s;https://us.download.nvidia.com;http://${JUMP_HOST}:8080;g"
+find ./ -name Dockerfile | xargs sed -i "s;registry.access.redhat.com;${JUMP_HOST};g"
+find ./ -name Dockerfile | xargs sed -i '1 a\RUN rm -rf /etc/yum.repos.d*.repo/'
+
+find ./ -name Dockerfile | xargs sed -i "s;https://github.com;http://${JUMP_HOST}:8080;g"
+find ./ -name Dockerfile | xargs sed -i "s;https://raw.githubusercontent.com;http://${JUMP_HOST}:8080;g"
+find ./ -name Dockerfile | xargs sed -i '1 a\RUN rm -rf /etc/yum.repos.d*.repo/'
+
+cat <<EOF >./entitled/CentOS-Base.repo
+[LocalBaseOS]
+name=LocalYum-$releasever - Base
+baseurl= http://${JUMP_HOST}:8080/content/dist/rhel8/8/x86_64/baseos/os
+gpgcheck=1
+gpgkey=file:/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+protect=1
+priority=1
+enabled=1
+
+[rhel-8-appstream-rhui-rpms]
+name=Red Hat Enterprise Linux 8 for $basearch - AppStream from RHUI (RPMs)
+baseurl= http://${JUMP_HOST}:8080/content/dist/rhel8/8/x86_64/appstream/os
+enabled=1
+gpgcheck=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
+protect=1
+priority=1
+EOF
+cat <<EOF >./rhel8/CentOS-Base.repo
+[LocalBaseOS]
+name=LocalYum-$releasever - Base
+baseurl= http://${JUMP_HOST}:8080/content/dist/rhel8/8/x86_64/baseos/os
+gpgcheck=1
+gpgkey=file:/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+protect=1
+priority=1
+enabled=1
+[rhel-8-appstream-rhui-rpms]
+name=Red Hat Enterprise Linux 8 for $basearch - AppStream from RHUI (RPMs)
+baseurl= http://${JUMP_HOST}:8080/content/dist/rhel8/8/x86_64/appstream/os
+enabled=1
+gpgcheck=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
+protect=1
+priority=1
+
+EOF
+cat ./entitled/CentOS-Base.repo
+cat ./rhel8/CentOS-Base.repo
+##########################################################
+git add .
+git config --global user.email "liqcui@redhat.com"
+git config --global user.name "liqcui"
+git commit -m "Initial commit"
+git push -u origin entitled

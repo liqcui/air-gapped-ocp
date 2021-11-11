@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cluster-entitled-build-pod
+spec:
+  containers:
+    - name: cluster-entitled-build
+      image: JUMPHOST/ubi8
+      command: [ "/bin/sh", "-c", "dnf search kernel-devel --showduplicates" ]
+  imagePullPolicy: Always
+  restartPolicy: Never

@@ -1,0 +1,45 @@
+Automation Steps:
+You can use below automation script to instead of 1.1.1 Generate a self-signed certificates, 1.1.2 Create an local registry using podman
+#########################################################
+Clone the automation code to flexy jump hosts then execute startup-mirror-registry.sh scripts.
+sudo -i
+yum install git -y
+git clone https://github.com/liqcui/air-gapped-ocp.git 
+cd air-gapped-ocp/build-mirror-env/
+./startup-mirror-registry.sh -s ${JUMP_HOST}
+
+podman logs -f ocp-registry
+You will see below logs msg="listening on [::]:443, tls" , it means the registry startup successfully.
+time="2021-07-20T07:30:10.045510128Z" level=info msg="listening on [::]:443, tls" go.version=go1.11.2 instance.id=8d1024aa-9c7d-4a79-8900-2021c958b04b service=registry version=v2.7.1 
+#########################################################
+
+
+1.1.1 Generate a self-signed certificates 
+Required OpenSSL version is 1.1.1,by default, openssl version is lower than 1.1.1g in the flexy jump host, we can generate the self-signed certificate in other server, then copy to flexy jump hosts.
+
+Check openssl version, 
+openssl version
+OpenSSL 1.1.1g FIPS  21 Apr 2020
+
+To install openssl 1.1.1, Please follow this guide Install openssl 1.1.1 on centos7 
+To create self-signed certificates with SAN, You can also refer to https://geekflare.com/san-ssl-certificate/ 
+Generated self-signed certificate command
+mkdir certs
+openssl req -subj "/C=CN/ST=BJ/L=BJ/O=RedHat/OU=OpenShiftQE/CN=${JUMP_HOST}/emailAddress=liqcui@redhat.com" -addext 'subjectAltName=DNS:${JUMP_HOST}' -newkey rsa:4096 -nodes -sha256 -keyout certs/domain.key -x509 -days 365 -out certs/domain.crt
+scp -i ~/.ssh/openshift-qe.pem -r certs ${JUMP_USERID}@${JUMP_HOST}:/tmp/
+
+1.1.2 Create an local registry using podman
+Below steps must be execute in flexy proxy hosts of disconnected cluster, 
+ Login Flexy proxy server:
+ ssh -i ~/.ssh/openshift-qe.pem  ${JUMP_USERID}@${JUMP_HOST}
+Copy previous generated self-signed certificates to /opt/ocp-registry/certs
+
+sudo -i
+mkdir -p /opt/ocp-registry/certs
+cd /opt/ocp-registry/
+cp /tmp/certs/* /opt/ocp-registry/certs/
+sudo podman run -d  --restart=always --name ocp-registry -v "`pwd`/certs:/certs":Z -e REGISTRY_HTTP_ADDR=0.0.0.0:443 -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt -e REGISTRY_HTTP_TLS_KEY=/certs/domain.key -p 443:443 registry:2.7.1
+
+NOTE:
+If met with time="2021-07-06T04:55:08.72277285Z" level=fatal msg="open /certs/domain.crt: permission denied" issue. Please try the below method to fix it.
+chcon -Rt svirt_sandbox_file_t /opt/ocp-registry/certs

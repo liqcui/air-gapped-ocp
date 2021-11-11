@@ -1,0 +1,39 @@
+FROM registry.access.redhat.com/rhscl/httpd-24-rhel7
+ADD mirror-repos.tar /opt/
+#Create RHEL BaseOS and APPStream folder
+RUN mkdir -p /var/www/html/content/dist/rhel8/8/x86_64/appstream/
+RUN ln -s /opt/mirror-repos/rhel-8-appstream-rhui-rpms /var/www/html/content/dist/rhel8/8/x86_64/appstream/os
+RUN mkdir -p /var/www/html/content/dist/rhel8/8/x86_64/baseos/
+RUN ln -s /opt/mirror-repos/rhel-8-baseos-rhui-rpms/ /var/www/html/content/dist/rhel8/8/x86_64/baseos/os
+
+#Create Nvidia Mirror Reposistory
+RUN mkdir -p  /var/www/html/nvidia-container-runtime/centos7/
+RUN curl -s -L https://nvidia.github.io/nvidia-container-runtime/centos7/nvidia-container-runtime.repo | \
+   tee  /var/www/html/nvidia-container-runtime/centos7/nvidia-container-runtime.repo
+RUN sed -i 's;https://nvidia.github.io;http://JUMPHOST;' /var/www/html/nvidia-container-runtime/centos7/nvidia-container-runtime.repo
+RUN sed -i 's/repo_gpgcheck=1/repo_gpgcheck=0/' /var/www/html/nvidia-container-runtime/centos7/nvidia-container-runtime.repo
+
+
+RUN mkdir -p  /var/www/html/libnvidia-container/stable/centos7/
+RUN mkdir -p  /var/www/html/libnvidia-container/experimental/centos7/
+RUN mkdir -p  /var/www/html/nvidia-container-runtime/stable/centos7/
+RUN mkdir -p  /var/www/html/nvidia-container-runtime/experimental/centos7/
+RUN ln -s /opt/mirror-repos/libnvidia-container/ /var/www/html/libnvidia-container/stable/centos7/x86_64
+RUN ln -s /opt/mirror-repos/libnvidia-container-experimental/  /var/www/html/libnvidia-container/experimental/centos7/x86_64
+RUN ln -s /opt/mirror-repos/nvidia-container-runtime/  /var/www/html/nvidia-container-runtime/stable/centos7/x86_64
+RUN ln -s /opt/mirror-repos/nvidia-container-runtime-experimental /var/www/html/nvidia-container-runtime/experimental/centos7/x86_64
+
+#Download donkey, extract-vmlinux 
+RUN mkdir -p /var/www/html/3XX0/donkey/releases/download/v1.1.0/
+RUN curl -fsSL -o /var/www/html/3XX0/donkey/releases/download/v1.1.0/donkey https://github.com/3XX0/donkey/releases/download/v1.1.0/donkey 
+RUN mkdir -p /var/www/html/torvalds/linux/master/scripts/
+RUN curl -fsSL -o  /var/www/html/torvalds/linux/master/scripts/extract-vmlinux https://raw.githubusercontent.com/torvalds/linux/master/scripts/extract-vmlinux
+
+#Download NVIDIA-Linux-x86_64-$DRIVER_VERSION.run
+ENV BASE_URL=https://us.download.nvidia.com/tesla
+ENV DRIVER_VERSION=418.87.01
+ENV SHORT_DRIVER_VERSION=418.87
+ENV DRIVER_VERSION=$DRIVER_VERSION
+RUN mkdir -p  /var/www/html/tesla/$SHORT_DRIVER_VERSION/
+RUN cd /var/www/html/tesla/$SHORT_DRIVER_VERSION/
+RUN curl -fSsl -O $BASE_URL/$SHORT_DRIVER_VERSION/NVIDIA-Linux-x86_64-$DRIVER_VERSION.run

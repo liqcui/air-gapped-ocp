@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dtk-pod
+spec:
+  containers:
+  - name: dtk-pod
+    image: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:7f0c83c52a9ba19e2bae258b0ecd2660152d52e47d061c30dd632a0e2537a9f6
+    command: ['sh', '-c', 'echo "Hello, Kubernetes!" && sleep 3600']
