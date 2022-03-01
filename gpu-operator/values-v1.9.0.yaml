@@ -86,7 +86,11 @@ driver:
   use_ocp_driver_toolkit: true
   repository: nvcr.io/nvidia
   image: driver
+<<<<<<< HEAD
+  version: "sha256:c9af394fe78c02acbc2fae2c43fd73030ef54ab76156b1ae566eaed53f9b4835"
+=======
   version: "470.82.01"
+>>>>>>> ac7a9154cfd794cae8b75bd7db9f628e726cd3ce
   imagePullPolicy: IfNotPresent
   imagePullSecrets: []
   rdma:
